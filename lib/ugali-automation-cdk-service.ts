@@ -16,6 +16,8 @@ const AVG_DATA_DEV_NAME = "AverageSpendingMapTable-dev";
 const AVG_DATA_PROD_NAME = "AverageSpendingMapTable-prod";
 const PREMIUM_USR_DEV_NAME = "PremiumUsers-kkgm6iv2yra6rdjcihe4m3sqly-dev";
 const PREMIUM_USR_PROD_NAME = "PremiumUsers-hcocoddbajfnlppt72aaktonpe-ugalienv";
+const PROD_TXN_STREAM_ARN = "arn:aws:dynamodb:us-west-2:173916683421:table/Transaction-hcocoddbajfnlppt72aaktonpe-ugalienv/stream/2020-03-01T17:55:55.535";
+const DEV_TXN_STREAM_ARN = "arn:aws:dynamodb:us-west-2:173916683421:table/Transaction-kkgm6iv2yra6rdjcihe4m3sqly-dev/stream/2020-04-21T02:35:55.847";
 
 export class UgaliAutomationService extends core.Construct {
   constructor(scope: core.Construct, id: string, stage: string) {
@@ -28,8 +30,7 @@ export class UgaliAutomationService extends core.Construct {
         },
         tableName: stage === Stage.Prod ? AVG_DATA_PROD_NAME : AVG_DATA_DEV_NAME,
         billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-        removalPolicy: core.RemovalPolicy.RETAIN,
-        stream: dynamodb.StreamViewType.NEW_AND_OLD_IMAGES
+        removalPolicy: core.RemovalPolicy.RETAIN
       });
 
     const ddbLambdaExecutionRole = new iam.Role(this, 'DDBLambdaExecutionRole', {
@@ -44,16 +45,24 @@ export class UgaliAutomationService extends core.Construct {
     const averageSpendingAggregator = new lambda.Function(this, "UgaliAverageSpendingAggregatorFunction", {
       runtime: lambda.Runtime.NODEJS_12_X, // So we can use async in widget.js
       code: lambda.Code.fromAsset("resources"),
-      handler: "autoAddHandler.handler",
+      handler: "spendingAggregatorHandler.handler",
       timeout: Duration.seconds(300),
       role: ddbLambdaExecutionRole,
       environment: {
+        ENVIRONMedENT: stage,
         ENVIRONMENT: stage,
         TRANSACTION_TABLE_NAME: stage === Stage.Prod ? TXN_PROD_NAME : TXN_DEV_NAME,
         AVGDATA_TABLE_NAME: stage === Stage.Prod ? AVG_DATA_PROD_NAME : AVG_DATA_DEV_NAME
       }
     });
-    averageSpendingAggregator.addEventSource(new DynamoEventSource(dynamoTable, {
+
+    const tableName = stage === Stage.Prod ? TXN_PROD_NAME : TXN_DEV_NAME;
+    const txbTableArn = this.getTableArn(tableName);
+    const txnTable = dynamodb.Table.fromTableAttributes(this, tableName, {
+      tableArn: txbTableArn,
+      tableStreamArn: stage === Stage.Prod ? PROD_TXN_STREAM_ARN : DEV_TXN_STREAM_ARN
+    });
+    averageSpendingAggregator.addEventSource(new DynamoEventSource(txnTable, {
         startingPosition: lambda.StartingPosition.LATEST,
         batchSize: 1,
       }));
@@ -61,7 +70,7 @@ export class UgaliAutomationService extends core.Construct {
     const transactionAutoAdder = new lambda.Function(this, "UgaliAutoAddFunction", {
         runtime: lambda.Runtime.NODEJS_12_X, // So we can use async in widget.js
         code: lambda.Code.fromAsset("resources"),
-        handler: "spendingAggregatorHandler.handler",
+        handler: "autoAddHandler.handler",
         timeout: Duration.seconds(300),
         role: ddbLambdaExecutionRole,
         environment: {
@@ -82,5 +91,9 @@ export class UgaliAutomationService extends core.Construct {
 
 
 
+  }
+
+  getTableArn(tableName: string) {
+    return `arn:aws:dynamodb:us-west-2:173916683421:table/${tableName}`
   }
 }

@@ -102,6 +102,7 @@ function addTransactionToAvgData(newTransaction, map) {
         console.log("no month, adding month to map")
 
         map["avgSpendingData"][year][month] = {
+            ccSum: 0.0
         };
     }
     if (map["avgSpendingData"][year][month][newTransaction.category.S] === undefined) {
@@ -111,12 +112,23 @@ function addTransactionToAvgData(newTransaction, map) {
             sum: 0.0
         };
     }
+
+    if (map["avgSpendingData"][year][month]["ccSum"] === undefined) {
+        console.log("adding cc sum field to existing mo/yr");
+        map["avgSpendingData"][year][month]["ccSum"] = 0.0;
+    }
+
     map["avgSpendingData"][year][month][newTransaction.category.S].count += 1;
     console.log(typeof newTransaction.amount.N);
     console.log("newTransaction.amount.N: " + newTransaction.amount.N);
 
     map["avgSpendingData"][year][month][newTransaction.category.S].sum += parseFloat(newTransaction.amount.N);
 
+    if (isCCExpense(newTransaction)) {
+        console.log("increment sum data if cc txn");
+        console.log(JSON.stringify(newTransaction));
+        map["avgSpendingData"][year][month]["ccSum"] += parseFloat(newTransaction.amount.N);
+    }
 };
 
 function modifyTransactionToAvgData(udpatedTransaction, previousVersion, map) {
@@ -152,6 +164,7 @@ function modifyTransactionToAvgData(udpatedTransaction, previousVersion, map) {
     }
     map["avgSpendingData"][updatedYear][updatedMonth][udpatedTransaction.category.S].sum += parseFloat(udpatedTransaction.amount.N);
 
+    // todo add logic here.
 };
 
 function removeTransactionToAvgData(transactionToRemove, map) {
@@ -160,6 +173,21 @@ function removeTransactionToAvgData(transactionToRemove, map) {
     const month = getMonthFrom(transactionToRemove);
     map["avgSpendingData"][year][month][transactionToRemove.category.S].count -= 1;
     map["avgSpendingData"][year][month][transactionToRemove.category.S].sum -= parseFloat(transactionToRemove.amount.N);
+
+    if (isCCExpense(transactionToRemove)) {
+        console.log("remove sum data");
+        console.log(JSON.stringify(transactionToRemove));
+        if (map["avgSpendingData"][year][month]["ccSum"] !== undefined) {
+            let currVal = map["avgSpendingData"][year][month]["ccSum"];
+            console.log(currVal);
+            console.log(typeof currVal);
+            let newVal = currVal -= parseFloat(transactionToRemove.amount.N);
+            console.log("newVal: " + newVal);
+            if (newVal >= 0) {
+                map["avgSpendingData"][year][month]["ccSum"] -= parseFloat(transactionToRemove.amount.N);
+            }
+        }
+    }
 };
 
 function getYearFrom(transaction) {
@@ -168,4 +196,8 @@ function getYearFrom(transaction) {
 
 function getMonthFrom(transaction) {
     return transaction.date.S.split('-')[1];
+}
+
+function isCCExpense(transaction) {
+    return transaction.payment_method.S === "credit" && transaction.type.N === "2";
 }
