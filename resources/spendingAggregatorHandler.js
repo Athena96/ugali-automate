@@ -133,6 +133,8 @@ function addTransactionToAvgData(newTransaction, map) {
 
 function modifyTransactionToAvgData(udpatedTransaction, previousVersion, map) {
     console.log("modifyTransactionToAvgData");
+    console.log("previousVersion" + JSON.stringify(previousVersion));
+    console.log("udpatedTransaction" + JSON.stringify(udpatedTransaction));
     const prevYear = getYearFrom(previousVersion);
     const prevMonth = getMonthFrom(previousVersion);
 
@@ -164,7 +166,26 @@ function modifyTransactionToAvgData(udpatedTransaction, previousVersion, map) {
     }
     map["avgSpendingData"][updatedYear][updatedMonth][udpatedTransaction.category.S].sum += parseFloat(udpatedTransaction.amount.N);
 
-    // todo add logic here.
+    if (map["avgSpendingData"][updatedYear][updatedMonth]["ccSum"] === undefined) {
+        console.log("adding cc sum field to existing mo/yr");
+        map["avgSpendingData"][updatedYear][updatedMonth]["ccSum"] = 0.0;
+    }
+
+    if (map["avgSpendingData"][prevYear][prevMonth]["ccSum"] === undefined) {
+        console.log("adding cc sum field to existing mo/yr");
+        map["avgSpendingData"][prevYear][prevMonth]["ccSum"] = 0.0;
+    }
+    if (isCCExpense(previousVersion) && isCCExpense(udpatedTransaction)) {
+        console.log("isCCExpense(previousVersion) && isCCExpense(udpatedTransaction)");
+        map["avgSpendingData"][prevYear][prevMonth]["ccSum"] -= parseFloat(previousVersion.amount.N);
+        map["avgSpendingData"][updatedYear][updatedMonth]["ccSum"] += parseFloat(udpatedTransaction.amount.N);
+    } else if (!isCCExpense(previousVersion) && isCCExpense(udpatedTransaction)) {
+        console.log("!isCCExpense(previousVersion) && isCCExpense(udpatedTransaction)");
+        map["avgSpendingData"][updatedYear][updatedMonth]["ccSum"] += parseFloat(udpatedTransaction.amount.N);
+    } else if (isCCExpense(previousVersion) && !isCCExpense(udpatedTransaction)) {
+        console.log("!isCCExpense(previousVersion) && isCCExpense(udpatedTransaction)");
+        map["avgSpendingData"][prevYear][prevMonth]["ccSum"] -= parseFloat(udpatedTransaction.amount.N);
+    }
 };
 
 function removeTransactionToAvgData(transactionToRemove, map) {
