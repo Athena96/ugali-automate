@@ -87,7 +87,6 @@ async function putMapForUser(map) {
     return result;
 };
 
-
 function initMap(transaction, map) {
     const year = getYearFrom(transaction);
     const month = getMonthFrom(transaction);
@@ -112,6 +111,18 @@ function initMap(transaction, map) {
         };
     }
 
+    if (map[avgSpendingKey][year][month][category].count === 0 && map[avgSpendingKey][year][month][category].sum > 0) {
+        map[avgSpendingKey][year][month][category].sum = 0.0; // reset if errors
+    }
+
+    if (map[avgSpendingKey][year][month][category].count < 0) {
+        map[avgSpendingKey][year][month][category].count = 0; // reset if errors
+    }
+
+    if (map[avgSpendingKey][year][month][category].sum < 0) {
+        map[avgSpendingKey][year][month][category].sum = 0.0; // reset if errors
+    }
+
     initCCSumField(transaction, map);
 }
 
@@ -123,6 +134,7 @@ function initCCSumField(transaction, map) {
         map[avgSpendingKey][year][month][ccSumKey] = 0.0;
     }
 }
+
 function addTransactionToAvgData(newTransaction, map) {
     console.log("addTransactionToAvgData");
     console.log(newTransaction);
@@ -151,14 +163,18 @@ function modifyTransactionToAvgData(udpatedTransaction, previousVersion, map) {
     const updatedYear = getYearFrom(udpatedTransaction);
     const updatedMonth = getMonthFrom(udpatedTransaction);
 
-    console.log("subtract amount and count from the previous entry");
-    map[avgSpendingKey][prevYear][prevMonth][previousVersion.category.S].sum -= parseFloat(previousVersion.amount.N);
-    map[avgSpendingKey][prevYear][prevMonth][previousVersion.category.S].count -= 1;
+    if (map[avgSpendingKey] && map[avgSpendingKey][prevYear] && map[avgSpendingKey][prevYear][prevMonth] && map[avgSpendingKey][prevYear][prevMonth][previousVersion.category.S]) {
+        console.log("subtract amount and count from the previous entry");
+        map[avgSpendingKey][prevYear][prevMonth][previousVersion.category.S].sum -= parseFloat(previousVersion.amount.N);
+        map[avgSpendingKey][prevYear][prevMonth][previousVersion.category.S].count -= 1;
 
-    // if the resulting count is 0... then the user likely created a new category by accident... 
-    // so remove it from the map to keep things clean.
-    if (map[avgSpendingKey][prevYear][prevMonth][previousVersion.category.S].count === 0) {
-        delete map[avgSpendingKey][prevYear][prevMonth][previousVersion.category.S];
+        // if the resulting count is 0... then the user likely created a new category by accident... 
+        // so remove it from the map to keep things clean.
+        if (map[avgSpendingKey][prevYear][prevMonth][previousVersion.category.S].count === 0) {
+            delete map[avgSpendingKey][prevYear][prevMonth][previousVersion.category.S];
+        }
+    } else {
+        console.log("attempting to update old txn not in map... skipping.");
     }
 
     initMap(udpatedTransaction, map);
@@ -184,22 +200,31 @@ function removeTransactionToAvgData(transactionToRemove, map) {
     console.log("removeTransactionToAvgData");
     const year = getYearFrom(transactionToRemove);
     const month = getMonthFrom(transactionToRemove);
-    map[avgSpendingKey][year][month][transactionToRemove.category.S].count -= 1;
-    map[avgSpendingKey][year][month][transactionToRemove.category.S].sum -= parseFloat(transactionToRemove.amount.N);
 
-    if (isCCExpense(transactionToRemove)) {
-        console.log("remove sum data");
-        console.log(JSON.stringify(transactionToRemove));
-        if (map[avgSpendingKey][year][month][ccSumKey] !== undefined) {
-            let currVal = map[avgSpendingKey][year][month][ccSumKey];
-            console.log(currVal);
-            console.log(typeof currVal);
-            let newVal = currVal -= parseFloat(transactionToRemove.amount.N);
-            console.log("newVal: " + newVal);
-            if (newVal >= 0) {
-                map[avgSpendingKey][year][month][ccSumKey] -= parseFloat(transactionToRemove.amount.N);
+    if (map[avgSpendingKey] 
+        && map[avgSpendingKey][year] 
+        && map[avgSpendingKey][year][transactionToRemove.category.S] 
+        && map[avgSpendingKey][year][transactionToRemove.category.S].count 
+        && map[avgSpendingKey][year][transactionToRemove.category.S].sum ) {
+        map[avgSpendingKey][year][month][transactionToRemove.category.S].count -= 1;
+        map[avgSpendingKey][year][month][transactionToRemove.category.S].sum -= parseFloat(transactionToRemove.amount.N);
+
+        if (isCCExpense(transactionToRemove)) {
+            console.log("remove sum data");
+            console.log(JSON.stringify(transactionToRemove));
+            if (map[avgSpendingKey][year][month][ccSumKey] !== undefined) {
+                let currVal = map[avgSpendingKey][year][month][ccSumKey];
+                console.log(currVal);
+                console.log(typeof currVal);
+                let newVal = currVal -= parseFloat(transactionToRemove.amount.N);
+                console.log("newVal: " + newVal);
+                if (newVal >= 0) {
+                    map[avgSpendingKey][year][month][ccSumKey] -= parseFloat(transactionToRemove.amount.N);
+                }
             }
         }
+    } else {
+        console.log("attempting to remove old txn not in map... skipping.");
     }
 };
 
