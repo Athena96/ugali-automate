@@ -203,9 +203,10 @@ function removeTransactionToAvgData(transactionToRemove, map) {
 
     if (map[avgSpendingKey] 
         && map[avgSpendingKey][year] 
-        && map[avgSpendingKey][year][transactionToRemove.category.S] 
-        && map[avgSpendingKey][year][transactionToRemove.category.S].count 
-        && map[avgSpendingKey][year][transactionToRemove.category.S].sum ) {
+        && map[avgSpendingKey][year][month]
+        && map[avgSpendingKey][year][month][transactionToRemove.category.S] 
+        && map[avgSpendingKey][year][month][transactionToRemove.category.S].count 
+        && map[avgSpendingKey][year][month][transactionToRemove.category.S].sum ) {
         map[avgSpendingKey][year][month][transactionToRemove.category.S].count -= 1;
         map[avgSpendingKey][year][month][transactionToRemove.category.S].sum -= parseFloat(transactionToRemove.amount.N);
 
