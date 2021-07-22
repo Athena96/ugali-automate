@@ -211,10 +211,17 @@ function removeTransactionToAvgData(transactionToRemove, map) {
     console.log('5' + map[avgSpendingKey][year][month][transactionToRemove.category.S].sum);
     if (map[avgSpendingKey] 
         && map[avgSpendingKey][year] 
+<<<<<<< HEAD
         && map[avgSpendingKey][year][month][transactionToRemove.category.S] 
         && map[avgSpendingKey][year][month][transactionToRemove.category.S].count 
         && map[avgSpendingKey][year][month][transactionToRemove.category.S].sum ) {
 
+=======
+        && map[avgSpendingKey][year][month]
+        && map[avgSpendingKey][year][month][transactionToRemove.category.S] 
+        && map[avgSpendingKey][year][month][transactionToRemove.category.S].count 
+        && map[avgSpendingKey][year][month][transactionToRemove.category.S].sum ) {
+>>>>>>> 3d8248a5b63622bbea6e0c3d260f96bb8bd7c643
         map[avgSpendingKey][year][month][transactionToRemove.category.S].count -= 1;
         map[avgSpendingKey][year][month][transactionToRemove.category.S].sum -= (isIncome(transactionToRemove) ? parseFloat(transactionToRemove.amount.N)* -1.0 : parseFloat(transactionToRemove.amount.N));
 
@@ -248,6 +255,7 @@ function getMonthFrom(transaction) {
 function isCCExpense(transaction) {
     return transaction.payment_method.S === "credit" && transaction.type.N === "2";
 }
+<<<<<<< HEAD
 
 function isCC(transaction) {
     return transaction.payment_method.S === "credit";
@@ -256,3 +264,5 @@ function isCC(transaction) {
 function isIncome(transaction) {
     return transaction.category.S === "income" && transaction.type.N === "1";
 }
+=======
+>>>>>>> 3d8248a5b63622bbea6e0c3d260f96bb8bd7c643
