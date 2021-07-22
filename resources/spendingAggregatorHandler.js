@@ -145,12 +145,12 @@ function addTransactionToAvgData(newTransaction, map) {
     initMap(newTransaction, map);
 
     map[avgSpendingKey][year][month][newTransaction.category.S].count += 1;
-    map[avgSpendingKey][year][month][newTransaction.category.S].sum += parseFloat(newTransaction.amount.N);
+    map[avgSpendingKey][year][month][newTransaction.category.S].sum += (isCC(newTransaction) && isIncome(newTransaction)) ? (parseFloat(newTransaction.amount.N) * -1.0) : parseFloat(newTransaction.amount.N);
 
-    if (isCCExpense(newTransaction)) {
+    if (isCC(newTransaction)) {
         console.log("increment sum data if cc txn");
         console.log(JSON.stringify(newTransaction));
-        map[avgSpendingKey][year][month][ccSumKey] += parseFloat(newTransaction.amount.N);
+        map[avgSpendingKey][year][month][ccSumKey] += (isIncome(newTransaction)) ? (parseFloat(newTransaction.amount.N) * -1.0) : parseFloat(newTransaction.amount.N);
     }
 };
 
@@ -165,7 +165,7 @@ function modifyTransactionToAvgData(udpatedTransaction, previousVersion, map) {
 
     if (map[avgSpendingKey] && map[avgSpendingKey][prevYear] && map[avgSpendingKey][prevYear][prevMonth] && map[avgSpendingKey][prevYear][prevMonth][previousVersion.category.S]) {
         console.log("subtract amount and count from the previous entry");
-        map[avgSpendingKey][prevYear][prevMonth][previousVersion.category.S].sum -= parseFloat(previousVersion.amount.N);
+        map[avgSpendingKey][prevYear][prevMonth][previousVersion.category.S].sum -= (isIncome(previousVersion) ? parseFloat(previousVersion.amount.N) * -1.0 : parseFloat(previousVersion.amount.N));
         map[avgSpendingKey][prevYear][prevMonth][previousVersion.category.S].count -= 1;
 
         // if the resulting count is 0... then the user likely created a new category by accident... 
@@ -181,18 +181,18 @@ function modifyTransactionToAvgData(udpatedTransaction, previousVersion, map) {
     initCCSumField(previousVersion, map);
 
     map[avgSpendingKey][updatedYear][updatedMonth][udpatedTransaction.category.S].count += 1;
-    map[avgSpendingKey][updatedYear][updatedMonth][udpatedTransaction.category.S].sum += parseFloat(udpatedTransaction.amount.N);
+    map[avgSpendingKey][updatedYear][updatedMonth][udpatedTransaction.category.S].sum += (isIncome(udpatedTransaction)) ? (parseFloat(udpatedTransaction.amount.N) * -1.0) : parseFloat(udpatedTransaction.amount.N);
 
-    if (isCCExpense(previousVersion) && isCCExpense(udpatedTransaction)) {
+    if (isCC(previousVersion) && isCC(udpatedTransaction)) {
         console.log("isCCExpense(previousVersion) && isCCExpense(udpatedTransaction)");
-        map[avgSpendingKey][prevYear][prevMonth][ccSumKey] -= parseFloat(previousVersion.amount.N);
-        map[avgSpendingKey][updatedYear][updatedMonth][ccSumKey] += parseFloat(udpatedTransaction.amount.N);
-    } else if (!isCCExpense(previousVersion) && isCCExpense(udpatedTransaction)) {
+        map[avgSpendingKey][prevYear][prevMonth][ccSumKey] -= (isIncome(previousVersion) ? parseFloat(previousVersion.amount.N)* -1.0 : parseFloat(previousVersion.amount.N));
+        map[avgSpendingKey][updatedYear][updatedMonth][ccSumKey] += (isIncome(udpatedTransaction)) ? (parseFloat(udpatedTransaction.amount.N) * -1.0) : parseFloat(udpatedTransaction.amount.N);
+    } else if (!isCC(previousVersion) && isCC(udpatedTransaction)) {
         console.log("!isCCExpense(previousVersion) && isCCExpense(udpatedTransaction)");
-        map[avgSpendingKey][updatedYear][updatedMonth][ccSumKey] += parseFloat(udpatedTransaction.amount.N);
-    } else if (isCCExpense(previousVersion) && !isCCExpense(udpatedTransaction)) {
+        map[avgSpendingKey][updatedYear][updatedMonth][ccSumKey] += (isIncome(udpatedTransaction)) ? (parseFloat(udpatedTransaction.amount.N) * -1.0) : parseFloat(udpatedTransaction.amount.N);
+    } else if (isCC(previousVersion) && !isCC(udpatedTransaction)) {
         console.log("!isCCExpense(previousVersion) && isCCExpense(udpatedTransaction)");
-        map[avgSpendingKey][prevYear][prevMonth][ccSumKey] -= parseFloat(udpatedTransaction.amount.N);
+        map[avgSpendingKey][prevYear][prevMonth][ccSumKey] -= (isIncome(udpatedTransaction) ? parseFloat(udpatedTransaction.amount.N)* -1.0 : parseFloat(udpatedTransaction.amount.N));
     }
 };
 
@@ -201,25 +201,34 @@ function removeTransactionToAvgData(transactionToRemove, map) {
     const year = getYearFrom(transactionToRemove);
     const month = getMonthFrom(transactionToRemove);
 
+    console.log('year: ' + year + " month: " + month);
+    console.log('1' + JSON.stringify(map[avgSpendingKey])); 
+    console.log('2' + JSON.stringify(map[avgSpendingKey][year][month]));
+    console.log('transactionToRemove.category.S: ' + transactionToRemove.category.S);
+    
+    console.log('3' + JSON.stringify(map[avgSpendingKey][year][month][transactionToRemove.category.S]));
+    console.log('4' + map[avgSpendingKey][year][month][transactionToRemove.category.S].count );
+    console.log('5' + map[avgSpendingKey][year][month][transactionToRemove.category.S].sum);
     if (map[avgSpendingKey] 
         && map[avgSpendingKey][year] 
-        && map[avgSpendingKey][year][transactionToRemove.category.S] 
-        && map[avgSpendingKey][year][transactionToRemove.category.S].count 
-        && map[avgSpendingKey][year][transactionToRemove.category.S].sum ) {
-        map[avgSpendingKey][year][month][transactionToRemove.category.S].count -= 1;
-        map[avgSpendingKey][year][month][transactionToRemove.category.S].sum -= parseFloat(transactionToRemove.amount.N);
+        && map[avgSpendingKey][year][month][transactionToRemove.category.S] 
+        && map[avgSpendingKey][year][month][transactionToRemove.category.S].count 
+        && map[avgSpendingKey][year][month][transactionToRemove.category.S].sum ) {
 
-        if (isCCExpense(transactionToRemove)) {
+        map[avgSpendingKey][year][month][transactionToRemove.category.S].count -= 1;
+        map[avgSpendingKey][year][month][transactionToRemove.category.S].sum -= (isIncome(transactionToRemove) ? parseFloat(transactionToRemove.amount.N)* -1.0 : parseFloat(transactionToRemove.amount.N));
+
+        if (isCC(transactionToRemove)) {
             console.log("remove sum data");
             console.log(JSON.stringify(transactionToRemove));
             if (map[avgSpendingKey][year][month][ccSumKey] !== undefined) {
                 let currVal = map[avgSpendingKey][year][month][ccSumKey];
                 console.log(currVal);
                 console.log(typeof currVal);
-                let newVal = currVal -= parseFloat(transactionToRemove.amount.N);
+                let newVal = currVal -= (isIncome(transactionToRemove) ? parseFloat(transactionToRemove.amount.N)* -1.0 : parseFloat(transactionToRemove.amount.N));
                 console.log("newVal: " + newVal);
                 if (newVal >= 0) {
-                    map[avgSpendingKey][year][month][ccSumKey] -= parseFloat(transactionToRemove.amount.N);
+                    map[avgSpendingKey][year][month][ccSumKey] -= (isIncome(transactionToRemove) ? parseFloat(transactionToRemove.amount.N)* -1.0 : parseFloat(transactionToRemove.amount.N));
                 }
             }
         }
@@ -238,4 +247,12 @@ function getMonthFrom(transaction) {
 
 function isCCExpense(transaction) {
     return transaction.payment_method.S === "credit" && transaction.type.N === "2";
+}
+
+function isCC(transaction) {
+    return transaction.payment_method.S === "credit";
+}
+
+function isIncome(transaction) {
+    return transaction.category.S === "income" && transaction.type.N === "1";
 }
